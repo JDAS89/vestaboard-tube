@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LAST_MSG_FILE = path.join(__dirname, 'last_message.txt');
+const OVERRIDE_FILE = path.join(__dirname, 'override.txt');
 
 const WEATHER_URL =
   'https://api.open-meteo.com/v1/forecast?latitude=51.4927&longitude=-0.2229&current=temperature_2m,weather_code&timezone=Europe/London';
@@ -62,7 +63,7 @@ function formatDate(date) {
   return `${parts.weekday.toUpperCase()} ${parseInt(parts.day)} ${parts.month.toUpperCase()} ${parts.year}`;
 }
 
-async function main() {
+async function buildNormalMessage() {
   const [weatherRes, tubeRes] = await Promise.all([
     fetch(WEATHER_URL),
     fetch(TUBE_URL),
@@ -79,7 +80,6 @@ async function main() {
   const tube = await tubeRes.json();
 
   const dateLine = formatDate(new Date());
-
   const temp = Math.round(weather.current.temperature_2m);
   const weatherLine = `${temp} C | ${weatherDesc(weather.current.weather_code)}`;
 
@@ -95,17 +95,24 @@ async function main() {
     return `${colour}${name} ${abbr}`;
   });
 
-  const message = [dateLine, weatherLine, '', ...tubeLines].join('\n');
+  return [dateLine, weatherLine, '', ...tubeLines].join('\n');
+}
+
+async function main() {
+  let override = '';
+  try {
+    override = fs.readFileSync(OVERRIDE_FILE, 'utf8').trim();
+  } catch {}
+
+  const message = override || await buildNormalMessage();
 
   let lastMessage = '';
   try {
     lastMessage = fs.readFileSync(LAST_MSG_FILE, 'utf8').trim();
-  } catch {
-    // first run — file doesn't exist yet
-  }
+  } catch {}
 
   if (message === lastMessage) {
-    console.log('No change detected, skipping post.');
+    console.log(override ? 'No change (override mode), skipping post.' : 'No change detected, skipping post.');
     return;
   }
 
@@ -125,9 +132,8 @@ async function main() {
     throw new Error(`Vestaboard POST ${postRes.status}: ${await postRes.text()}`);
   }
 
-  console.log('Posted to Vestaboard:');
+  console.log(override ? 'Posted override to Vestaboard:' : 'Posted to Vestaboard:');
   console.log(message);
-
   fs.writeFileSync(LAST_MSG_FILE, message, 'utf8');
 }
 
