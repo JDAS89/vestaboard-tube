@@ -76,20 +76,11 @@ async function getCurrentBoardState(key) {
   });
   if (!res.ok) throw new Error(`Board GET returned ${res.status}`);
 
-  const text = await res.text();
-  console.log('Board GET raw (200):', JSON.stringify(text.slice(0, 200)));
-  let val = text;
-  for (let i = 0; i < 5; i++) {
-    if (typeof val !== 'string') break;
-    try {
-      val = JSON.parse(val);
-      console.log(`Parse ${i + 1}: type=${typeof val}, isArray=${Array.isArray(val)}`);
-    } catch (e) {
-      console.log(`Parse ${i + 1} threw: ${e.message}`);
-      break;
-    }
-  }
-  const layout = val?.currentMessage?.layout ?? val?.layout ?? val;
+  // Response: {"currentMessage":{"layout":"[[...]]",...}}
+  // The layout field is a JSON-encoded string, so we need two parses total
+  const data = await res.json();
+  const raw = data?.currentMessage?.layout ?? data?.layout ?? data;
+  const layout = typeof raw === 'string' ? JSON.parse(raw) : raw;
 
   if (
     !Array.isArray(layout) ||
