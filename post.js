@@ -95,7 +95,7 @@ async function main() {
     return `${colour}${name} ${abbr}`;
   });
 
-  const message = [dateLine, weatherLine, ...tubeLines].join('\n');
+  const message = [dateLine, weatherLine, '', ...tubeLines].join('\n');
 
   let lastMessage = '';
   try {
