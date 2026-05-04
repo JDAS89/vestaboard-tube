@@ -3,8 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LAST_MSG_FILE = path.join(__dirname, 'last_message.txt');
-const OVERRIDE_FILE = path.join(__dirname, 'override.txt');
+const LAST_MSG_FILE    = path.join(__dirname, 'last_message.txt');
+const OVERRIDE_FILE    = path.join(__dirname, 'override.txt');
+const QUIET_HOURS_FILE = path.join(__dirname, 'quiet_hours.txt');
 
 const WEATHER_URL =
   'https://api.open-meteo.com/v1/forecast?latitude=51.4927&longitude=-0.2229&current=temperature_2m,weather_code&timezone=Europe/London';
@@ -68,6 +69,47 @@ function decodeLayout(layout) {
   return layout
     .map(row => row.map(decodeChar).join('').trimEnd())
     .join('\n');
+}
+
+// Returns true if the current London time falls within the quiet window defined
+// in quiet_hours.txt (format: HH:MM-HH:MM). Handles midnight-spanning ranges.
+function duringQuietHours(now) {
+  let content = '';
+  try {
+    content = fs.readFileSync(QUIET_HOURS_FILE, 'utf8').trim();
+  } catch {
+    return false; // missing file → no quiet hours
+  }
+  if (!content) return false; // empty file → no quiet hours
+
+  const match = content.match(/^(\d{2}):(\d{2})-(\d{2}):(\d{2})$/);
+  if (!match) {
+    console.warn(`quiet_hours.txt format invalid (expected HH:MM-HH:MM, got "${content}") — ignoring.`);
+    return false;
+  }
+
+  const [sh, sm, eh, em] = match.slice(1).map(Number);
+  if (sh > 23 || sm > 59 || eh > 23 || em > 59) {
+    console.warn(`quiet_hours.txt contains out-of-range time values ("${content}") — ignoring.`);
+    return false;
+  }
+
+  const start = sh * 60 + sm;
+  const end   = eh * 60 + em;
+
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/London',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(now).map(p => [p.type, p.value])
+  );
+  const nowMins = parseInt(parts.hour) * 60 + parseInt(parts.minute);
+
+  return start < end
+    ? nowMins >= start && nowMins < end   // same-day range, e.g. 02:00-07:00
+    : nowMins >= start || nowMins < end;  // midnight-spanning, e.g. 23:00-07:00
 }
 
 async function getCurrentBoardState(key) {
@@ -150,6 +192,13 @@ async function buildNormalMessage() {
 }
 
 async function main() {
+  const now = new Date();
+
+  if (duringQuietHours(now)) {
+    console.log('Quiet hours active — skipping run.');
+    return;
+  }
+
   let override = '';
   try {
     override = fs.readFileSync(OVERRIDE_FILE, 'utf8').trim();
@@ -189,7 +238,12 @@ async function main() {
   });
 
   if (!postRes.ok) {
-    throw new Error(`Vestaboard POST ${postRes.status}: ${await postRes.text()}`);
+    // Don't throw — a rejection (e.g. Vestaboard's own quiet hours) should not
+    // mark the Actions run as failed. Don't update last_message.txt so we retry.
+    const body = await postRes.text();
+    console.warn(`Vestaboard POST rejected (${postRes.status}): ${body}`);
+    console.warn('Skipping last_message.txt update — will retry on next run.');
+    return;
   }
 
   console.log(override ? 'Posted override to Vestaboard:' : 'Posted to Vestaboard:');

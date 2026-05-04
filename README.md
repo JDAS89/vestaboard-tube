@@ -88,6 +88,37 @@ gh workflow run post.yml
 
 The workflow also runs automatically on the cron schedule (`*/15 * * * *`).
 
+## Quiet hours
+
+There are two independent quiet-hours mechanisms, and they work at different levels:
+
+| | `quiet_hours.txt` (this script) | Vestaboard app / dashboard |
+|---|---|---|
+| **What it does** | Stops the script from running at all | Rejects POST requests to the board |
+| **Saves API calls** | Yes | No — the script still runs |
+| **Protects the board from all automation** | No | Yes |
+
+It is recommended to set both to the same window. The script handles each gracefully:
+- If the script's own quiet hours are active, it exits immediately and logs clearly — no weather or tube data is fetched.
+- If the Vestaboard's quiet hours reject a POST, the script logs the rejection and exits cleanly with a success status (no red ✗ in GitHub Actions). `last_message.txt` is not updated so the post will be retried on the next run after quiet hours end.
+
+### Setting the script's quiet hours
+
+Edit `quiet_hours.txt` in the repo root. The file must contain a single line in `HH:MM-HH:MM` format (24-hour, London time):
+
+```
+23:00-07:00
+```
+
+This means the script will skip all runs between 11 pm and 7 am. Ranges that span midnight work correctly. To disable, clear the file (leave it empty).
+
+**Example — overnight:**
+```
+23:00-07:30
+```
+
+Edit via the GitHub mobile app (tap the file → pencil icon → commit) or commit and push from your terminal. Changes take effect on the next scheduled run.
+
 ## Manual updates from the Vestaboard app
 
 You can push any message directly via the Vestaboard app, web dashboard, or any other API client. However, **the script compares the new message against the actual live board state**, so if the script wants to display different content it will overwrite whatever is on the board within 15 minutes.
