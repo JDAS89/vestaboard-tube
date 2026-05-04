@@ -77,8 +77,9 @@ async function getCurrentBoardState(key) {
   if (!res.ok) throw new Error(`Board GET returned ${res.status}`);
 
   const data = await res.json();
-  // Response may nest the layout differently across API versions
-  const layout = data?.currentMessage?.layout ?? data?.layout ?? data;
+  // The RW API returns the layout as a double-encoded JSON string
+  const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+  const layout = parsed?.currentMessage?.layout ?? parsed?.layout ?? parsed;
 
   if (
     !Array.isArray(layout) ||
