@@ -43,6 +43,55 @@ const STATUS_MAP = new Map([
   ['No Service',      ['NO SERVICE', '{63}']],
 ]);
 
+// Vestaboard character code → string (docs.vestaboard.com/docs/characterCodes)
+const CHAR_CODES = new Map([
+  [0, ' '],
+  // A–Z: codes 1–26
+  ...Array.from({ length: 26 }, (_, i) => [i + 1, String.fromCharCode(65 + i)]),
+  // 1–9: codes 27–35
+  ...Array.from({ length: 9 }, (_, i) => [i + 27, String(i + 1)]),
+  [36, '0'],
+  [37, '!'], [38, '@'], [39, '#'], [40, '$'],
+  [41, '('], [42, ')'], [43, '|'], [44, '-'],
+  [46, '+'], [47, '&'], [48, '='], [49, ';'], [50, ':'],
+  [52, "'"], [53, '"'], [54, '%'], [55, ','], [56, '.'],
+  [59, '/'], [60, '?'], [62, '°'],
+  // Colour/fill squares → {XX} tokens matching our outgoing format
+  ...Array.from({ length: 9 }, (_, i) => [i + 63, `{${i + 63}}`]),
+]);
+
+function decodeChar(code) {
+  return CHAR_CODES.get(code) ?? '';
+}
+
+function decodeLayout(layout) {
+  return layout
+    .map(row => row.map(decodeChar).join('').trimEnd())
+    .join('\n');
+}
+
+async function getCurrentBoardState(key) {
+  const res = await fetch(VESTABOARD_URL, {
+    headers: { 'X-Vestaboard-Read-Write-Key': key },
+  });
+  if (!res.ok) throw new Error(`Board GET returned ${res.status}`);
+
+  const data = await res.json();
+  // Response may nest the layout differently across API versions
+  const layout = data?.currentMessage?.layout ?? data?.layout ?? data;
+
+  if (
+    !Array.isArray(layout) ||
+    layout.length !== 6 ||
+    !Array.isArray(layout[0]) ||
+    layout[0].length !== 22
+  ) {
+    throw new Error(`Unexpected layout shape: ${JSON.stringify(layout).slice(0, 120)}`);
+  }
+
+  return decodeLayout(layout);
+}
+
 function weatherDesc(code) {
   return WEATHER_CODES.get(code) ?? 'CLEAR';
 }
@@ -106,18 +155,27 @@ async function main() {
 
   const message = override || await buildNormalMessage();
 
-  let lastMessage = '';
-  try {
-    lastMessage = fs.readFileSync(LAST_MSG_FILE, 'utf8').trim();
-  } catch {}
+  const key = process.env.VESTABOARD_KEY;
+  if (!key) throw new Error('VESTABOARD_KEY env var not set');
 
-  if (message === lastMessage) {
+  // Primary: compare against live board state so we detect external changes
+  let currentState;
+  try {
+    currentState = await getCurrentBoardState(key);
+  } catch (err) {
+    // Fallback: use last_message.txt if the GET fails for any reason
+    console.warn(`Board GET failed (${err.message}) — falling back to last_message.txt`);
+    try {
+      currentState = fs.readFileSync(LAST_MSG_FILE, 'utf8').trim();
+    } catch {
+      currentState = '';
+    }
+  }
+
+  if (message === currentState) {
     console.log(override ? 'No change (override mode), skipping post.' : 'No change detected, skipping post.');
     return;
   }
-
-  const key = process.env.VESTABOARD_KEY;
-  if (!key) throw new Error('VESTABOARD_KEY env var not set');
 
   const postRes = await fetch(VESTABOARD_URL, {
     method: 'POST',
@@ -134,6 +192,8 @@ async function main() {
 
   console.log(override ? 'Posted override to Vestaboard:' : 'Posted to Vestaboard:');
   console.log(message);
+
+  // Keep last_message.txt in sync as a fallback for when the GET is unavailable
   fs.writeFileSync(LAST_MSG_FILE, message, 'utf8');
 }
 

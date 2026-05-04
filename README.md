@@ -88,6 +88,17 @@ gh workflow run post.yml
 
 The workflow also runs automatically on the cron schedule (`*/15 * * * *`).
 
+## Manual updates from the Vestaboard app
+
+You can push any message directly via the Vestaboard app, web dashboard, or any other API client. However, **the script compares the new message against the actual live board state**, so if the script wants to display different content it will overwrite whatever is on the board within 15 minutes.
+
+This means:
+
+- **Quick demos are fine** — show something to a friend via the app, then within 15 minutes the board returns to normal automatically.
+- **Sustained custom messages** (dinner menu, party mode, event info) should use `override.txt` instead. That tells the script what you *want* displayed, so it won't fight with you.
+
+If you post via the app and the next run happens to generate the same content as what you posted, it will skip the POST — so there's no unnecessary churn.
+
 ## Data sources
 
 - Weather: [Open-Meteo](https://open-meteo.com/) (no API key required)
