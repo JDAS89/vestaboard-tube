@@ -76,10 +76,13 @@ async function getCurrentBoardState(key) {
   });
   if (!res.ok) throw new Error(`Board GET returned ${res.status}`);
 
-  const data = await res.json();
-  // The RW API returns the layout as a double-encoded JSON string
-  const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-  const layout = parsed?.currentMessage?.layout ?? parsed?.layout ?? parsed;
+  // The RW API wraps the layout in multiple levels of JSON encoding;
+  // unwrap until we reach a non-string value (array or object)
+  let val = await res.json();
+  for (let i = 0; i < 4 && typeof val === 'string'; i++) {
+    try { val = JSON.parse(val); } catch { break; }
+  }
+  const layout = val?.currentMessage?.layout ?? val?.layout ?? val;
 
   if (
     !Array.isArray(layout) ||
