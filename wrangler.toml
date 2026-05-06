@@ -1,0 +1,13 @@
+name = "vestaboard-tube"
+main = "src/index.js"
+compatibility_date = "2025-05-06"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[kv_namespaces]]
+binding = "STATE"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+[vars]
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/JDAS89/vestaboard-tube/main"

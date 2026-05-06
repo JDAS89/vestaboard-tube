@@ -1,6 +1,15 @@
 # vestaboard-tube
 
-Posts London Tube status and weather to a Vestaboard every 15 minutes via GitHub Actions. Only posts when the content has changed since the last run.
+Posts London Tube status and weather to a Vestaboard every 15 minutes via a Cloudflare Worker. Only posts when the content has changed since the last run.
+
+## Architecture
+
+| Concern | How it works |
+|---|---|
+| **Scheduling** | Cloudflare Workers cron trigger (`*/15 * * * *`) |
+| **State (last message)** | Workers KV — no commit-back needed |
+| **Config files** | `override.txt` and `quiet_hours.txt` stay in this GitHub repo; the Worker fetches them via GitHub's raw content URLs at runtime |
+| **Deployment** | Push to `main` → GitHub Action runs `wrangler deploy` → new Worker is live within seconds |
 
 ## Normal output format
 
@@ -22,8 +31,8 @@ You can push any message to the Vestaboard by editing `override.txt` in the repo
 ### How to use
 
 1. Edit `override.txt` — write your message, one row per line
-2. Commit and push
-3. Wait up to 15 minutes for the next scheduled run (or trigger manually via the Actions tab)
+2. Commit and push (or commit via GitHub mobile app)
+3. Wait up to 15 minutes for the next scheduled run
 
 ### Layout rules
 
@@ -44,15 +53,17 @@ Place the code at the start of a line to colour that row, e.g. `{63}URGENT MESSA
 
 ### How to revert to normal
 
-Clear the contents of `override.txt` (leave the file empty), commit, and push. The next run will resume normal tube/weather output — and will always post it, even if the normal content matches what was showing before the override.
+Clear the contents of `override.txt` (leave the file empty), commit, and push. The next run will resume normal tube/weather output.
 
 ### Editing from your phone
 
-`override.txt` can be edited directly in the GitHub mobile app:
+`override.txt` can be edited directly in the GitHub mobile app — exactly as before:
 
 1. Open the repo → tap `override.txt` → tap the pencil icon
 2. Edit the content, scroll down, tap **Commit changes**
-3. Done — the next scheduled run will pick it up
+3. Done — the Worker fetches the file fresh (with cache-busting) on every run, so it picks up your change within 15 minutes
+
+`quiet_hours.txt` works the same way.
 
 ### Worked example — dinner menu
 
@@ -69,40 +80,98 @@ To clear it afterwards, open `override.txt` in GitHub, delete all the text, and 
 
 ## Setup
 
-### 1. Add the secret
+### 1. Install Wrangler
 
-In your GitHub repo: **Settings → Secrets and variables → Actions → New repository secret**
+```sh
+npm install -g wrangler
+wrangler login
+```
+
+### 2. Create the KV namespace
+
+```sh
+wrangler kv namespace create STATE
+```
+
+Copy the `id` from the output and paste it into `wrangler.toml`:
+
+```toml
+[[kv_namespaces]]
+binding = "STATE"
+id = "paste-your-id-here"
+```
+
+Commit and push the updated `wrangler.toml`.
+
+### 3. Add the Vestaboard secret
+
+```sh
+wrangler secret put VESTABOARD_KEY
+```
+
+Paste your Vestaboard read/write key when prompted. This is stored encrypted in Cloudflare — it never touches the repo.
+
+### 4. Wire up auto-deploy from GitHub
+
+The `.github/workflows/deploy.yml` action runs `wrangler deploy` on every push to `main`. It needs a Cloudflare API token:
+
+1. Go to [Cloudflare dashboard](https://dash.cloudflare.com/profile/api-tokens) → **Create Token**
+2. Use the **Edit Cloudflare Workers** template
+3. In your GitHub repo: **Settings → Secrets and variables → Actions → New repository secret**
 
 | Name | Value |
 |------|-------|
-| `VESTABOARD_KEY` | Your Vestaboard read/write key |
+| `CLOUDFLARE_API_TOKEN` | The token you just created |
 
-### 2. Trigger a test run
+After that, every push to `main` automatically deploys the latest Worker code.
 
-**GitHub UI:** Actions tab → "Post to Vestaboard" → Run workflow
+### 5. Deploy manually (first time or on demand)
 
-**GitHub CLI:**
 ```sh
-gh workflow run post.yml
+wrangler deploy
 ```
 
-The workflow also runs automatically on the cron schedule (`*/15 * * * *`).
+## Testing the Worker
+
+### Stream live logs
+
+```sh
+wrangler tail
+```
+
+Logs appear in real time whenever the Worker runs (cron or manual trigger).
+
+### Trigger a run manually
+
+**From the Cloudflare dashboard:**
+Workers & Pages → `vestaboard-tube` → **Triggers** tab → **Test scheduled event**
+
+**From the terminal (local simulation):**
+```sh
+wrangler dev --test-scheduled
+```
+Then in a second terminal:
+```sh
+curl "http://localhost:8787/__scheduled?cron=*%2F15+*+*+*+*"
+```
+
+This runs the full Worker logic locally against the live Vestaboard and GitHub APIs — useful for debugging without waiting for the cron.
 
 ## Quiet hours
 
-There are two independent quiet-hours mechanisms, and they work at different levels:
+There are two independent quiet-hours mechanisms:
 
-| | `quiet_hours.txt` (this script) | Vestaboard app / dashboard |
+| | `quiet_hours.txt` (this Worker) | Vestaboard app / dashboard |
 |---|---|---|
-| **What it does** | Stops the script from running at all | Rejects POST requests to the board |
-| **Saves API calls** | Yes | No — the script still runs |
+| **What it does** | Stops the Worker from running at all | Rejects POST requests to the board |
+| **Saves API calls** | Yes | No — the Worker still runs |
 | **Protects the board from all automation** | No | Yes |
 
-It is recommended to set both to the same window. The script handles each gracefully:
-- If the script's own quiet hours are active, it exits immediately and logs clearly — no weather or tube data is fetched.
-- If the Vestaboard's quiet hours reject a POST, the script logs the rejection and exits cleanly with a success status (no red ✗ in GitHub Actions). `last_message.txt` is not updated so the post will be retried on the next run after quiet hours end.
+It is recommended to set both to the same window. The Worker handles each gracefully:
+- If the Worker's own quiet hours are active, it exits immediately — no weather or tube data is fetched.
+- If the Vestaboard's quiet hours reject a POST, the Worker logs the rejection and exits cleanly. KV state is not updated, so the post will be retried on the next run after quiet hours end.
 
-### Setting the script's quiet hours
+### Setting the Worker's quiet hours
 
 Edit `quiet_hours.txt` in the repo root. The file must contain a single line in `HH:MM-HH:MM` format (24-hour, London time):
 
@@ -110,25 +179,15 @@ Edit `quiet_hours.txt` in the repo root. The file must contain a single line in 
 23:00-07:00
 ```
 
-This means the script will skip all runs between 11 pm and 7 am. Ranges that span midnight work correctly. To disable, clear the file (leave it empty).
+This means the Worker will skip all runs between 11 pm and 7 am. Ranges that span midnight work correctly. To disable, clear the file (leave it empty).
 
-**Example — overnight:**
-```
-23:00-07:30
-```
-
-Edit via the GitHub mobile app (tap the file → pencil icon → commit) or commit and push from your terminal. Changes take effect on the next scheduled run.
+Edit via the GitHub mobile app (tap the file → pencil icon → commit) or commit and push from your terminal. Changes take effect on the next scheduled run — no redeployment needed.
 
 ## Manual updates from the Vestaboard app
 
-You can push any message directly via the Vestaboard app, web dashboard, or any other API client. However, **the script compares the new message against the actual live board state**, so if the script wants to display different content it will overwrite whatever is on the board within 15 minutes.
+You can push any message directly via the Vestaboard app or any other API client. The Worker compares the new message against the actual live board state, so if it wants to display different content it will overwrite whatever is on the board within 15 minutes.
 
-This means:
-
-- **Quick demos are fine** — show something to a friend via the app, then within 15 minutes the board returns to normal automatically.
-- **Sustained custom messages** (dinner menu, party mode, event info) should use `override.txt` instead. That tells the script what you *want* displayed, so it won't fight with you.
-
-If you post via the app and the next run happens to generate the same content as what you posted, it will skip the POST — so there's no unnecessary churn.
+Use `override.txt` for sustained custom messages so the Worker doesn't fight with you.
 
 ## Data sources
 
