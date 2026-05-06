@@ -7,7 +7,7 @@ crons = ["*/15 * * * *"]
 
 [[kv_namespaces]]
 binding = "STATE"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "f10a27d4b8bc4840afc169dc72fe9fe0"
 
 [vars]
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/JDAS89/vestaboard-tube/main"
