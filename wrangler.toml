@@ -3,7 +3,7 @@ main = "src/index.js"
 compatibility_date = "2025-05-06"
 
 [triggers]
-crons = ["*/15 * * * *"]
+crons = ["*/5 * * * *"]
 
 [[kv_namespaces]]
 binding = "STATE"

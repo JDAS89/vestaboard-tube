@@ -1,12 +1,12 @@
 # vestaboard-tube
 
-Posts London Tube status and weather to a Vestaboard every 15 minutes via a Cloudflare Worker. Only posts when the content has changed since the last run.
+Posts London Tube status and weather to a Vestaboard every 5 minutes via a Cloudflare Worker. Only posts when the content has changed since the last run.
 
 ## Architecture
 
 | Concern | How it works |
 |---|---|
-| **Scheduling** | Cloudflare Workers cron trigger (`*/15 * * * *`) |
+| **Scheduling** | Cloudflare Workers cron trigger (`*/5 * * * *`) |
 | **State (last message)** | Workers KV — no commit-back needed |
 | **Config files** | `override.txt` and `quiet_hours.txt` stay in this GitHub repo; the Worker fetches them via GitHub's raw content URLs at runtime |
 | **Deployment** | Push to `main` → GitHub Action runs `wrangler deploy` → new Worker is live within seconds |
