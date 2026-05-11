@@ -30,7 +30,7 @@ const STATUS_MAP = new Map([
   ['Severe Delays',   ['SEVERE DELAYS',   63]],
   ['Part Suspended',  ['PART SUSPENDED',  63]],
   ['Suspended',       ['SUSPENDED',       63]],
-  ['Planned Closure', ['PLANNED CLOSURE', 63]],
+  ['Planned Closure', ['PLANNED CLOSE',   63]],
   ['Service Closed',  ['SERVICE CLOSED',  63]],
   ['No Service',      ['NO SERVICE',      63]],
 ]);
@@ -90,8 +90,17 @@ function centreRow(text) {
 }
 
 // Colour tile at position 0, text in positions 1–21, right-padded with 0s.
+// Used by override parsing — layout is verbatim, no auto-margin.
 function statusRow(colourCode, text) {
   const row = [colourCode, ...Array.from(text).slice(0, 21).map(charToCode)];
+  while (row.length < 22) row.push(0);
+  return row;
+}
+
+// 2-blank left margin + colour tile + text (positions 3–21), right-padded to 22 cols.
+// Used for the live tube status rows so line names are inset from the board edge.
+function tubeStatusRow(colourCode, text) {
+  const row = [0, 0, colourCode, ...Array.from(text).slice(0, 19).map(charToCode)];
   while (row.length < 22) row.push(0);
   return row;
 }
@@ -226,7 +235,7 @@ async function buildNormalArray() {
     const line = lineById.get(id);
     const desc = line?.lineStatuses?.[0]?.statusSeverityDescription ?? 'Unknown';
     const [abbr, colour] = lineStatus(desc);
-    return statusRow(colour, `${name} ${abbr}`);
+    return tubeStatusRow(colour, `${name} ${abbr}`);
   });
 
   return [
