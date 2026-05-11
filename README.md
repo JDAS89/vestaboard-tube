@@ -22,7 +22,7 @@ MON 4 MAY 2026
 {66}HAMM GOOD SERVICE
 ```
 
-Row 3 is blank. Rows 4–6 are prefixed with a colour code: `{66}` green, `{65}` yellow, `{64}` orange, `{63}` red.
+Rows 1 and 2 (date and weather) are auto-centred on the 22-character-wide board. Row 3 is blank. Rows 4–6 are prefixed with a colour code: `{66}` green, `{65}` yellow, `{64}` orange, `{63}` red.
 
 ## Using overrides
 

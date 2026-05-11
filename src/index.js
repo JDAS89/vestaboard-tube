@@ -144,6 +144,11 @@ function lineStatus(desc) {
   return STATUS_MAP.get(desc) ?? ['CHECK STATUS', '{65}'];
 }
 
+function centre(str) {
+  const padding = Math.floor((22 - str.length) / 2);
+  return padding > 0 ? ' '.repeat(padding) + str : str;
+}
+
 function formatDate(date) {
   const fmt = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/London',
@@ -172,9 +177,9 @@ async function buildNormalMessage() {
   const weather = await weatherRes.json();
   const tube = await tubeRes.json();
 
-  const dateLine = formatDate(new Date());
+  const dateLine = centre(formatDate(new Date()));
   const temp = Math.round(weather.current.temperature_2m);
-  const weatherLine = `${temp} C | ${weatherDesc(weather.current.weather_code)}`;
+  const weatherLine = centre(`${temp} C | ${weatherDesc(weather.current.weather_code)}`);
 
   const lineById = new Map(tube.map(l => [l.id, l]));
   const tubeLines = [
