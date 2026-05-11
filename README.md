@@ -10,6 +10,7 @@ Posts London Tube status and weather to a Vestaboard every 5 minutes via a Cloud
 | **State (last message)** | Workers KV — no commit-back needed |
 | **Config files** | `override.txt` and `quiet_hours.txt` stay in this GitHub repo; the Worker fetches them via GitHub's raw content URLs at runtime |
 | **Deployment** | Push to `main` → GitHub Action runs `wrangler deploy` → new Worker is live within seconds |
+| **Board format** | Messages are sent as a 6×22 array of integer character codes (Vestaboard Read/Write API character array format) |
 
 ## Normal output format
 
@@ -22,7 +23,9 @@ MON 4 MAY 2026
 {66}HAMM GOOD SERVICE
 ```
 
-Rows 1 and 2 (date and weather) are auto-centred on the 22-character-wide board. Row 3 is blank. Rows 4–6 are prefixed with a colour code: `{66}` green, `{65}` yellow, `{64}` orange, `{63}` red.
+Rows 1 and 2 (date and weather) are auto-centred on the 22-character-wide board. Row 3 is blank. Rows 4–6 have a colour tile at position 0 followed by the line status text.
+
+Internally, the Worker builds a 6×22 array of integer character codes and POSTs it using the Vestaboard Read/Write API character array format (`{"characters": [[...]]}`) rather than plain text. Change detection compares the raw arrays directly (JSON-stringified), which is more reliable than the previous text-decode approach.
 
 ## Using overrides
 
@@ -36,9 +39,9 @@ You can push any message to the Vestaboard by editing `override.txt` in the repo
 
 ### Layout rules
 
-- Maximum **6 rows**, **22 characters per row** (colour codes like `{66}` count toward the 22)
+- Maximum **6 rows**, **22 characters per row** (colour codes like `{66}` occupy position 0, leaving 21 characters of text)
 - Leave a line blank to insert an empty row
-- Content is sent verbatim — no automatic padding or truncation
+- Text is converted to Vestaboard character codes automatically — **the override.txt format is unchanged**
 
 ### Colour codes
 

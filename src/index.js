@@ -20,46 +20,60 @@ const WEATHER_CODES = new Map([
 ]);
 
 const STATUS_MAP = new Map([
-  ['Good Service',    ['GOOD SERVICE',    '{66}']],
-  ['Information',     ['INFORMATION',     '{66}']],
-  ['Planned Work',    ['PLANNED WORK',    '{65}']],
-  ['Minor Delays',    ['MINOR DELAYS',    '{65}']],
-  ['Reduced Service', ['REDUCED SVC',     '{65}']],
-  ['Delays',          ['DELAYS',          '{64}']],
-  ['Part Closure',    ['PART CLOSURE',    '{64}']],
-  ['Severe Delays',   ['SEVERE DELAYS',   '{63}']],
-  ['Part Suspended',  ['PART SUSPENDED',  '{63}']],
-  ['Suspended',       ['SUSPENDED',       '{63}']],
-  ['Planned Closure', ['PLANNED CLOSURE', '{63}']],
-  ['Service Closed',  ['SERVICE CLOSED',  '{63}']],
-  ['No Service',      ['NO SERVICE',      '{63}']],
+  ['Good Service',    ['GOOD SERVICE',    66]],
+  ['Information',     ['INFORMATION',     66]],
+  ['Planned Work',    ['PLANNED WORK',    65]],
+  ['Minor Delays',    ['MINOR DELAYS',    65]],
+  ['Reduced Service', ['REDUCED SVC',     65]],
+  ['Delays',          ['DELAYS',          64]],
+  ['Part Closure',    ['PART CLOSURE',    64]],
+  ['Severe Delays',   ['SEVERE DELAYS',   63]],
+  ['Part Suspended',  ['PART SUSPENDED',  63]],
+  ['Suspended',       ['SUSPENDED',       63]],
+  ['Planned Closure', ['PLANNED CLOSURE', 63]],
+  ['Service Closed',  ['SERVICE CLOSED',  63]],
+  ['No Service',      ['NO SERVICE',      63]],
 ]);
 
-// Vestaboard character code → string (docs.vestaboard.com/docs/characterCodes)
-const CHAR_CODES = new Map([
-  [0, ' '],
-  // A–Z: codes 1–26
-  ...Array.from({ length: 26 }, (_, i) => [i + 1, String.fromCharCode(65 + i)]),
-  // 1–9: codes 27–35
-  ...Array.from({ length: 9 }, (_, i) => [i + 27, String(i + 1)]),
-  [36, '0'],
-  [37, '!'], [38, '@'], [39, '#'], [40, '$'],
-  [41, '('], [42, ')'], [43, '|'], [44, '-'],
-  [46, '+'], [47, '&'], [48, '='], [49, ';'], [50, ':'],
-  [52, "'"], [53, '"'], [54, '%'], [55, ','], [56, '.'],
-  [59, '/'], [60, '?'], [62, '°'],
-  // Colour/fill squares → {XX} tokens matching our outgoing format
-  ...Array.from({ length: 9 }, (_, i) => [i + 63, `{${i + 63}}`]),
+// Character → Vestaboard code (docs.vestaboard.com/docs/characterCodes)
+const CHAR_TO_CODE = new Map([
+  [' ', 0],
+  ...Array.from({ length: 26 }, (_, i) => [String.fromCharCode(65 + i), i + 1]),
+  ...Array.from({ length: 9 }, (_, i) => [String(i + 1), i + 27]),
+  ['0', 36],
+  ['!', 37], ['@', 38], ['#', 39], ['$', 40],
+  ['(', 41], [')', 42], ['|', 43], ['-', 44],
+  ['+', 46], ['&', 47], ['=', 48], [';', 49], [':', 50],
+  ["'", 52], ['"', 53], ['%', 54], [',', 55], ['.', 56],
+  ['/', 59], ['?', 60], ['°', 62],
 ]);
 
-function decodeChar(code) {
-  return CHAR_CODES.get(code) ?? '';
+function charToCode(c) {
+  return CHAR_TO_CODE.get(c) ?? 0;
 }
 
-function decodeLayout(layout) {
-  return layout
-    .map(row => row.map(decodeChar).join('').trimEnd())
-    .join('\n');
+// Convert text to a 22-element row, right-padded with 0s (blank tiles).
+function textToRow(text) {
+  const codes = Array.from(text).slice(0, 22).map(charToCode);
+  while (codes.length < 22) codes.push(0);
+  return codes;
+}
+
+// Centre text across 22 columns, surrounded by blank (0) tiles.
+function centreRow(text) {
+  const leftPad = Math.max(0, Math.floor((22 - text.length) / 2));
+  const row = new Array(22).fill(0);
+  Array.from(text).forEach((c, i) => {
+    if (leftPad + i < 22) row[leftPad + i] = charToCode(c);
+  });
+  return row;
+}
+
+// Colour tile at position 0, text in positions 1–21, right-padded with 0s.
+function statusRow(colourCode, text) {
+  const row = [colourCode, ...Array.from(text).slice(0, 21).map(charToCode)];
+  while (row.length < 22) row.push(0);
+  return row;
 }
 
 // Fetch a file from the GitHub repo. Returns empty string on 404 (file absent).
@@ -112,14 +126,14 @@ async function duringQuietHours(now, env) {
     : nowMins >= start || nowMins < end;  // midnight-spanning, e.g. 23:00-07:00
 }
 
-async function getCurrentBoardState(key) {
+async function getCurrentBoardArray(key) {
   const res = await fetch(VESTABOARD_URL, {
     headers: { 'X-Vestaboard-Read-Write-Key': key },
   });
   if (!res.ok) throw new Error(`Board GET returned ${res.status}`);
 
   // Response: {"currentMessage":{"layout":"[[...]]",...}}
-  // The layout field is a JSON-encoded string, so we need two parses total
+  // The layout field is a JSON-encoded string, so we need two parses total.
   const data = await res.json();
   const raw = data?.currentMessage?.layout ?? data?.layout ?? data;
   const layout = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -133,7 +147,7 @@ async function getCurrentBoardState(key) {
     throw new Error(`Unexpected layout shape: ${JSON.stringify(layout).slice(0, 120)}`);
   }
 
-  return decodeLayout(layout);
+  return layout;
 }
 
 function weatherDesc(code) {
@@ -141,12 +155,7 @@ function weatherDesc(code) {
 }
 
 function lineStatus(desc) {
-  return STATUS_MAP.get(desc) ?? ['CHECK STATUS', '{65}'];
-}
-
-function centre(str) {
-  const padding = Math.floor((22 - str.length) / 2);
-  return padding > 0 ? ' '.repeat(padding) + str : str;
+  return STATUS_MAP.get(desc) ?? ['CHECK STATUS', 65];
 }
 
 function formatDate(date) {
@@ -161,28 +170,35 @@ function formatDate(date) {
   return `${parts.weekday.toUpperCase()} ${parseInt(parts.day)} ${parts.month.toUpperCase()} ${parts.year}`;
 }
 
-async function buildNormalMessage() {
+// Parse override.txt into a 6×22 character code array.
+// Lines with a {NN} prefix (e.g. {63}, {66}) set the colour tile at position 0.
+// The override.txt format is unchanged from the user's perspective.
+function parseOverride(text) {
+  const lines = text.split('\n').slice(0, 6);
+  while (lines.length < 6) lines.push('');
+  return lines.map(line => {
+    const m = line.match(/^\{(\d+)\}/);
+    if (m) return statusRow(parseInt(m[1]), line.slice(m[0].length));
+    return textToRow(line);
+  });
+}
+
+async function buildNormalArray() {
   const [weatherRes, tubeRes] = await Promise.all([
     fetch(WEATHER_URL),
     fetch(TUBE_URL),
   ]);
 
-  if (!weatherRes.ok) {
-    throw new Error(`Weather API ${weatherRes.status}: ${await weatherRes.text()}`);
-  }
-  if (!tubeRes.ok) {
-    throw new Error(`TfL API ${tubeRes.status}: ${await tubeRes.text()}`);
-  }
+  if (!weatherRes.ok) throw new Error(`Weather API ${weatherRes.status}: ${await weatherRes.text()}`);
+  if (!tubeRes.ok) throw new Error(`TfL API ${tubeRes.status}: ${await tubeRes.text()}`);
 
   const weather = await weatherRes.json();
   const tube = await tubeRes.json();
 
-  const dateLine = centre(formatDate(new Date()));
   const temp = Math.round(weather.current.temperature_2m);
-  const weatherLine = centre(`${temp} C | ${weatherDesc(weather.current.weather_code)}`);
-
   const lineById = new Map(tube.map(l => [l.id, l]));
-  const tubeLines = [
+
+  const tubeRows = [
     ['piccadilly',       'PICC'],
     ['district',         'DIST'],
     ['hammersmith-city', 'HAMM'],
@@ -190,10 +206,15 @@ async function buildNormalMessage() {
     const line = lineById.get(id);
     const desc = line?.lineStatuses?.[0]?.statusSeverityDescription ?? 'Unknown';
     const [abbr, colour] = lineStatus(desc);
-    return `${colour}${name} ${abbr}`;
+    return statusRow(colour, `${name} ${abbr}`);
   });
 
-  return [dateLine, weatherLine, '', ...tubeLines].join('\n');
+  return [
+    centreRow(formatDate(new Date())),
+    centreRow(`${temp} C | ${weatherDesc(weather.current.weather_code)}`),
+    new Array(22).fill(0),
+    ...tubeRows,
+  ];
 }
 
 async function run(env) {
@@ -209,22 +230,23 @@ async function run(env) {
     override = await fetchGitHubFile(env.GITHUB_RAW_BASE, 'override.txt');
   } catch {}
 
-  const message = override || await buildNormalMessage();
+  const newArray = override ? parseOverride(override) : await buildNormalArray();
+  const newArrayStr = JSON.stringify(newArray);
 
   const key = env.VESTABOARD_KEY;
   if (!key) throw new Error('VESTABOARD_KEY secret not set');
 
-  // Primary: compare against live board state so we detect external changes
-  let currentState;
+  // Primary: compare against live board state so we detect external changes.
+  let currentArrayStr;
   try {
-    currentState = await getCurrentBoardState(key);
+    currentArrayStr = JSON.stringify(await getCurrentBoardArray(key));
   } catch (err) {
-    // Fallback: use KV state if the GET fails for any reason
+    // Fallback: use KV state if the GET fails for any reason.
     console.warn(`Board GET failed (${err.message}) — falling back to KV state`);
-    currentState = (await env.STATE.get('last_message')) ?? '';
+    currentArrayStr = (await env.STATE.get('last_message')) ?? '';
   }
 
-  if (message === currentState) {
+  if (newArrayStr === currentArrayStr) {
     console.log(override ? 'No change (override mode), skipping post.' : 'No change detected, skipping post.');
     return;
   }
@@ -235,7 +257,7 @@ async function run(env) {
       'X-Vestaboard-Read-Write-Key': key,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ text: message }),
+    body: JSON.stringify({ characters: newArray }),
   });
 
   if (!postRes.ok) {
@@ -247,11 +269,10 @@ async function run(env) {
     return;
   }
 
-  console.log(override ? 'Posted override to Vestaboard:' : 'Posted to Vestaboard:');
-  console.log(message);
+  console.log(override ? 'Posted override to Vestaboard.' : 'Posted to Vestaboard.');
 
-  // Keep KV in sync as a fallback for when the board GET is unavailable
-  await env.STATE.put('last_message', message);
+  // Keep KV in sync as a fallback for when the board GET is unavailable.
+  await env.STATE.put('last_message', newArrayStr);
 }
 
 export default {
