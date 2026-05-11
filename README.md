@@ -27,6 +27,24 @@ Rows 1 and 2 (date and weather) are auto-centred on the 22-character-wide board.
 
 Internally, the Worker builds a 6×22 array of integer character codes and POSTs it using the Vestaboard Read/Write API character array format (`{"characters": [[...]]}`) rather than plain text. Change detection compares the raw arrays directly (JSON-stringified), which is more reliable than the previous text-decode approach.
 
+### Weather descriptions
+
+| WMO codes | Displayed as |
+|-----------|-------------|
+| 0, 1 | `SUNNY` |
+| 2 | `PART CLOUD` |
+| 3 | `CLOUD` |
+| 45, 48 | `FOG` |
+| 51–57 | `DRIZZLE` |
+| 61 | `LIGHT RAIN` |
+| 63 | `MED RAIN` |
+| 65 | `HEAVY RAIN` |
+| 66, 67 | `ICY RAIN` |
+| 71–77, 85, 86 | `SNOW` |
+| 80–82 | `SHOWERS` |
+| 95, 96, 99 | `STORM` |
+| anything else | `CLEAR` |
+
 ## Using overrides
 
 You can push any message to the Vestaboard by editing `override.txt` in the repo root. While the file has content, the normal tube/weather logic is skipped entirely.

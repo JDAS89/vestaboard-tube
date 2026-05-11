@@ -5,15 +5,15 @@ const TUBE_URL =
 const VESTABOARD_URL = 'https://rw.vestaboard.com/';
 
 const WEATHER_CODES = new Map([
-  [0, 'SUN'], [1, 'SUN'],
+  [0, 'SUNNY'], [1, 'SUNNY'],
   [2, 'PART CLOUD'],
   [3, 'CLOUD'],
   [45, 'FOG'], [48, 'FOG'],
   [51, 'DRIZZLE'], [53, 'DRIZZLE'], [55, 'DRIZZLE'], [56, 'DRIZZLE'], [57, 'DRIZZLE'],
-  [61, 'LOW RAIN'],
+  [61, 'LIGHT RAIN'],
   [63, 'MED RAIN'],
   [65, 'HEAVY RAIN'],
-  [66, 'FRZ RAIN'], [67, 'FRZ RAIN'],
+  [66, 'ICY RAIN'], [67, 'ICY RAIN'],
   [71, 'SNOW'], [73, 'SNOW'], [75, 'SNOW'], [77, 'SNOW'], [85, 'SNOW'], [86, 'SNOW'],
   [80, 'SHOWERS'], [81, 'SHOWERS'], [82, 'SHOWERS'],
   [95, 'STORM'], [96, 'STORM'], [99, 'STORM'],
