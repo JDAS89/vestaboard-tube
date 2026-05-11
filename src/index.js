@@ -20,19 +20,19 @@ const WEATHER_CODES = new Map([
 ]);
 
 const STATUS_MAP = new Map([
-  ['Good Service',    ['GOOD',       '{66}']],
-  ['Information',     ['INFO',       '{66}']],
-  ['Planned Work',    ['WORKS',      '{65}']],
-  ['Minor Delays',    ['MINOR',      '{65}']],
-  ['Reduced Service', ['REDUCED',    '{65}']],
-  ['Delays',          ['DELAYS',     '{64}']],
-  ['Part Closure',    ['PART CLOSE', '{64}']],
-  ['Severe Delays',   ['SEVERE',     '{63}']],
-  ['Part Suspended',  ['PART SUSP',  '{63}']],
-  ['Suspended',       ['SUSP',       '{63}']],
-  ['Planned Closure', ['CLOSED',     '{63}']],
-  ['Service Closed',  ['CLOSED',     '{63}']],
-  ['No Service',      ['NO SERVICE', '{63}']],
+  ['Good Service',    ['GOOD SERVICE',    '{66}']],
+  ['Information',     ['INFORMATION',     '{66}']],
+  ['Planned Work',    ['PLANNED WORK',    '{65}']],
+  ['Minor Delays',    ['MINOR DELAYS',    '{65}']],
+  ['Reduced Service', ['REDUCED SVC',     '{65}']],
+  ['Delays',          ['DELAYS',          '{64}']],
+  ['Part Closure',    ['PART CLOSURE',    '{64}']],
+  ['Severe Delays',   ['SEVERE DELAYS',   '{63}']],
+  ['Part Suspended',  ['PART SUSPENDED',  '{63}']],
+  ['Suspended',       ['SUSPENDED',       '{63}']],
+  ['Planned Closure', ['PLANNED CLOSURE', '{63}']],
+  ['Service Closed',  ['SERVICE CLOSED',  '{63}']],
+  ['No Service',      ['NO SERVICE',      '{63}']],
 ]);
 
 // Vestaboard character code → string (docs.vestaboard.com/docs/characterCodes)
@@ -141,7 +141,7 @@ function weatherDesc(code) {
 }
 
 function lineStatus(desc) {
-  return STATUS_MAP.get(desc) ?? ['CHECK', '{65}'];
+  return STATUS_MAP.get(desc) ?? ['CHECK STATUS', '{65}'];
 }
 
 function formatDate(date) {

@@ -17,9 +17,9 @@ Posts London Tube status and weather to a Vestaboard every 5 minutes via a Cloud
 MON 4 MAY 2026
 16 C | CLOUD
 
-{66}PICC GOOD
-{66}DIST GOOD
-{66}HAMM GOOD
+{66}PICC GOOD SERVICE
+{66}DIST GOOD SERVICE
+{66}HAMM GOOD SERVICE
 ```
 
 Row 3 is blank. Rows 4–6 are prefixed with a colour code: `{66}` green, `{65}` yellow, `{64}` orange, `{63}` red.
