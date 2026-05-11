@@ -59,6 +59,26 @@ function textToRow(text) {
   return codes;
 }
 
+// Build the weather row as a character code array: NNN°C DESC, centred in 22 cols.
+// Character code 62 is the Flagship degree symbol — inserted directly so it survives
+// the array path without relying on string-to-code conversion of '°'.
+function buildWeatherRow(temp, weatherCode) {
+  const desc = weatherDesc(weatherCode);
+  const codes = [
+    ...Array.from(String(temp)).map(charToCode),
+    62, // °
+    3,  // C
+    0,  // space
+    ...Array.from(desc).map(charToCode),
+  ];
+  const leftPad = Math.floor((22 - codes.length) / 2);
+  const row = new Array(22).fill(0);
+  codes.forEach((code, i) => {
+    if (leftPad + i < 22) row[leftPad + i] = code;
+  });
+  return row;
+}
+
 // Centre text across 22 columns, surrounded by blank (0) tiles.
 function centreRow(text) {
   const leftPad = Math.max(0, Math.floor((22 - text.length) / 2));
@@ -211,7 +231,7 @@ async function buildNormalArray() {
 
   return [
     centreRow(formatDate(new Date())),
-    centreRow(`${temp} C | ${weatherDesc(weather.current.weather_code)}`),
+    buildWeatherRow(temp, weather.current.weather_code),
     new Array(22).fill(0),
     ...tubeRows,
   ];

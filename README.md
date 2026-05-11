@@ -16,7 +16,7 @@ Posts London Tube status and weather to a Vestaboard every 5 minutes via a Cloud
 
 ```
 MON 4 MAY 2026
-16 C | CLOUD
+16°C CLOUD
 
 {66}PICC GOOD SERVICE
 {66}DIST GOOD SERVICE
