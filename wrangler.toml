@@ -9,5 +9,9 @@ crons = ["*/5 * * * *"]
 binding = "STATE"
 id = "f10a27d4b8bc4840afc169dc72fe9fe0"
 
+[observability.logs]
+enabled = true
+invocation_logs = true
+
 [vars]
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/JDAS89/vestaboard-tube/main"
