@@ -108,10 +108,19 @@ function tubeStatusRow(colourCode, text) {
 // Fetch a file from the GitHub repo. Returns empty string on 404 (file absent).
 async function fetchGitHubFile(baseUrl, filename) {
   const url = `${baseUrl}/${filename}?t=${Date.now()}`;
+  console.log(`fetchGitHubFile: fetching ${filename}`);
   const res = await fetch(url);
-  if (res.status === 404) return '';
-  if (!res.ok) throw new Error(`GitHub fetch ${filename} returned ${res.status}`);
-  return (await res.text()).trim();
+  if (res.status === 404) {
+    console.log(`fetchGitHubFile: ${filename} returned 404 (empty)`);
+    return '';
+  }
+  if (!res.ok) {
+    console.log(`fetchGitHubFile: ${filename} returned non-200 status ${res.status}`);
+    throw new Error(`GitHub fetch ${filename} returned ${res.status}`);
+  }
+  const text = (await res.text()).trim();
+  console.log(`fetchGitHubFile: ${filename} returned ${text.length} chars, starts with "${text.slice(0, 30)}"`);
+  return text;
 }
 
 // Returns true if the current London time falls within the quiet window defined
@@ -120,10 +129,14 @@ async function duringQuietHours(now, env) {
   let content = '';
   try {
     content = await fetchGitHubFile(env.GITHUB_RAW_BASE, 'quiet_hours.txt');
-  } catch {
+  } catch (err) {
+    console.log(`duringQuietHours: fetch failed — ${err.message}`);
     return false; // fetch error → no quiet hours
   }
-  if (!content) return false; // missing or empty file → no quiet hours
+  if (!content) {
+    console.log('duringQuietHours: empty or missing file — skipping quiet hours');
+    return false; // missing or empty file → no quiet hours
+  }
 
   const match = content.match(/^(\d{2}):(\d{2})-(\d{2}):(\d{2})$/);
   if (!match) {
@@ -150,9 +163,13 @@ async function duringQuietHours(now, env) {
   );
   const nowMins = parseInt(parts.hour) * 60 + parseInt(parts.minute);
 
-  return start < end
+  const inWindow = start < end
     ? nowMins >= start && nowMins < end   // same-day range, e.g. 02:00-07:00
     : nowMins >= start || nowMins < end;  // midnight-spanning, e.g. 23:00-07:00
+
+  console.log(`Quiet hours check: content="${content}", parsedStart=${start}, parsedEnd=${end}, nowMins=${nowMins}, inWindow=${inWindow}`);
+
+  return inWindow;
 }
 
 async function getCurrentBoardArray(key) {
