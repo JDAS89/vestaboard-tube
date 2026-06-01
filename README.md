@@ -16,7 +16,7 @@ Posts London Tube status and weather to a Vestaboard every 5 minutes via a Cloud
 
 ```
 MON 4 MAY 2026
-16°C CLOUD
+11°C SUNNY  60%
 
   {66}PICC GOOD SERVICE
   {66}DIST GOOD SERVICE
@@ -24,6 +24,8 @@ MON 4 MAY 2026
 ```
 
 Rows 1 and 2 (date and weather) are auto-centred on the 22-character-wide board. Row 3 is blank. Rows 4–6 have a 2-blank left margin, then a colour tile, then the line status text — keeping the line names left-aligned and inset from the board edge.
+
+Row 2 format: `TEMP°C DESC  HH%` — temperature, degree symbol, space, weather description, **double space**, humidity percentage, percent sign. The double space creates a visual gap between the conditions block and the humidity reading.
 
 Internally, the Worker builds a 6×22 array of integer character codes and POSTs it using the Vestaboard Read/Write API character array format (`{"characters": [[...]]}`) rather than plain text. Change detection compares the raw arrays directly (JSON-stringified), which is more reliable than the previous text-decode approach.
 

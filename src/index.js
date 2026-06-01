@@ -1,5 +1,5 @@
 const WEATHER_URL =
-  'https://api.open-meteo.com/v1/forecast?latitude=51.4927&longitude=-0.2229&current=temperature_2m,weather_code&timezone=Europe/London';
+  'https://api.open-meteo.com/v1/forecast?latitude=51.4927&longitude=-0.2229&current=temperature_2m,relative_humidity_2m,weather_code&timezone=Europe/London';
 const TUBE_URL =
   'https://api.tfl.gov.uk/Line/piccadilly,district,hammersmith-city/Status';
 const VESTABOARD_URL = 'https://rw.vestaboard.com/';
@@ -59,10 +59,10 @@ function textToRow(text) {
   return codes;
 }
 
-// Build the weather row as a character code array: NNN°C DESC, centred in 22 cols.
-// Character code 62 is the Flagship degree symbol — inserted directly so it survives
-// the array path without relying on string-to-code conversion of '°'.
-function buildWeatherRow(temp, weatherCode) {
+// Build the weather row: NNN°C DESC  HH%, centred in 22 cols.
+// Character code 62 = degree symbol, 54 = percent sign.
+// Double space between desc and humidity creates a visual gap.
+function buildWeatherRow(temp, weatherCode, humidity) {
   const desc = weatherDesc(weatherCode);
   const codes = [
     ...Array.from(String(temp)).map(charToCode),
@@ -70,6 +70,9 @@ function buildWeatherRow(temp, weatherCode) {
     3,  // C
     0,  // space
     ...Array.from(desc).map(charToCode),
+    0, 0, // double space before humidity
+    ...Array.from(String(humidity)).map(charToCode),
+    54, // %
   ];
   const leftPad = Math.floor((22 - codes.length) / 2);
   const row = new Array(22).fill(0);
@@ -242,6 +245,7 @@ async function buildNormalArray() {
   const tube = await tubeRes.json();
 
   const temp = Math.round(weather.current.temperature_2m);
+  const humidity = Math.round(weather.current.relative_humidity_2m);
   const lineById = new Map(tube.map(l => [l.id, l]));
 
   const tubeRows = [
@@ -257,7 +261,7 @@ async function buildNormalArray() {
 
   return [
     centreRow(formatDate(new Date())),
-    buildWeatherRow(temp, weather.current.weather_code),
+    buildWeatherRow(temp, weather.current.weather_code, humidity),
     new Array(22).fill(0),
     ...tubeRows,
   ];
