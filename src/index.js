@@ -77,7 +77,11 @@ function buildWeatherRow(temp, weatherCode, humidity) {
 
 // Centre text across 22 columns, surrounded by blank (0) tiles.
 function centreRow(text) {
-  const leftPad = Math.max(0, Math.floor((22 - text.length) / 2));
+  return padRow(text, Math.max(0, Math.floor((22 - text.length) / 2)));
+}
+
+// Place text starting at leftPad, right-padded with 0s (blank tiles).
+function padRow(text, leftPad) {
   const row = new Array(22).fill(0);
   Array.from(text).forEach((c, i) => {
     if (leftPad + i < 22) row[leftPad + i] = charToCode(c);
@@ -218,10 +222,18 @@ function formatDate(date) {
 function parseOverride(text) {
   const lines = text.split('\n').slice(0, 6);
   while (lines.length < 6) lines.push('');
+
+  // Block-centre: all plain-text lines share one left pad, based on the
+  // longest of them, so the block reads as a uniform rectangle rather than
+  // each line centring independently.
+  const plainLines = lines.filter(line => !/^\{(\d+)\}/.test(line));
+  const longestLength = plainLines.reduce((max, line) => Math.max(max, Array.from(line).length), 0);
+  const blockPadding = Math.max(0, Math.floor((22 - longestLength) / 2));
+
   return lines.map(line => {
     const m = line.match(/^\{(\d+)\}/);
     if (m) return statusRow(parseInt(m[1]), line.slice(m[0].length));
-    return centreRow(line);
+    return padRow(line, blockPadding);
   });
 }
 
