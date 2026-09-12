@@ -62,8 +62,8 @@ You can push any message to the Vestaboard by editing `override.txt` in the repo
 - Maximum **6 rows**, **22 characters per row** (colour codes like `{66}` occupy position 0, leaving 21 characters of text)
 - Leave a line blank to insert an empty row
 - Text is converted to Vestaboard character codes automatically — **the override.txt format is unchanged**
-- Plain text lines (no colour prefix) are **block-centred**: the whole group of plain-text lines shares one left margin, based on the longest line among them, so the block reads as a uniform rectangle instead of each line centring on its own
-- Lines starting with a colour code like `{65}` are **left-aligned**, with the colour tile at position 0 and text following — they don't affect or participate in block centring
+- Plain text lines (no colour prefix) are **auto-centred** within the row
+- Lines starting with a colour code like `{65}` are **left-aligned**, with the colour tile at position 0 and text following
 
 ### Colour codes
 
