@@ -62,6 +62,8 @@ You can push any message to the Vestaboard by editing `override.txt` in the repo
 - Maximum **6 rows**, **22 characters per row** (colour codes like `{66}` occupy position 0, leaving 21 characters of text)
 - Leave a line blank to insert an empty row
 - Text is converted to Vestaboard character codes automatically — **the override.txt format is unchanged**
+- Plain text lines (no colour prefix) are **auto-centred** within the row
+- Lines starting with a colour code like `{65}` are **left-aligned**, with the colour tile at position 0 and text following
 
 ### Colour codes
 

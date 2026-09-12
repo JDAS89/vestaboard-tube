@@ -52,13 +52,6 @@ function charToCode(c) {
   return CHAR_TO_CODE.get(c) ?? 0;
 }
 
-// Convert text to a 22-element row, right-padded with 0s (blank tiles).
-function textToRow(text) {
-  const codes = Array.from(text).slice(0, 22).map(charToCode);
-  while (codes.length < 22) codes.push(0);
-  return codes;
-}
-
 // Build the weather row: NNN°C DESC  HH%, centred in 22 cols.
 // Character code 62 = degree symbol, 54 = percent sign.
 // Double space between desc and humidity creates a visual gap.
@@ -228,7 +221,7 @@ function parseOverride(text) {
   return lines.map(line => {
     const m = line.match(/^\{(\d+)\}/);
     if (m) return statusRow(parseInt(m[1]), line.slice(m[0].length));
-    return textToRow(line);
+    return centreRow(line);
   });
 }
 
